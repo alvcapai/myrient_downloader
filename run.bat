@@ -13,57 +13,66 @@ echo     Myrient Downloader
 echo   ================================================
 echo.
 
-:: ── Check for Python ──────────────────────────────────────────────────────────
-where python >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    goto :no_python
+:: ── Find a working Python 3.8+ interpreter ───────────────────────────────────
+set PYTHON=
+
+:: 1) Try the Windows Python Launcher (py.exe) — installed alongside Python
+py -3 --version >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    py -3 -c "import sys; exit(0 if sys.version_info >= (3,8) else 1)" >nul 2>&1
+    if %ERRORLEVEL% EQU 0 (
+        set PYTHON=py -3
+    )
 )
 
-:: Verify it's Python 3.8+
-python -c "import sys; exit(0 if sys.version_info >= (3,8) else 1)" >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    goto :old_python
+:: 2) Try "python" command
+if "%PYTHON%"=="" (
+    where python >nul 2>&1
+    if %ERRORLEVEL% EQU 0 (
+        python -c "import sys; exit(0 if sys.version_info >= (3,8) else 1)" >nul 2>&1
+        if %ERRORLEVEL% EQU 0 (
+            set PYTHON=python
+        )
+    )
+)
+
+:: 3) Try "python3" command
+if "%PYTHON%"=="" (
+    where python3 >nul 2>&1
+    if %ERRORLEVEL% EQU 0 (
+        python3 -c "import sys; exit(0 if sys.version_info >= (3,8) else 1)" >nul 2>&1
+        if %ERRORLEVEL% EQU 0 (
+            set PYTHON=python3
+        )
+    )
+)
+
+:: ── No Python found ───────────────────────────────────────────────────────────
+if "%PYTHON%"=="" (
+    echo.
+    echo   ================================================
+    echo     Python 3.8 or newer is required
+    echo   ================================================
+    echo.
+    echo   Python was not found on your computer.
+    echo.
+    echo   Steps to fix:
+    echo     1. Go to: https://www.python.org/downloads/
+    echo     2. Download and run the installer
+    echo     3. IMPORTANT: check "Add Python to PATH"
+    echo     4. Restart your computer
+    echo     5. Double-click this file again
+    echo.
+    echo   ================================================
+    echo.
+    pause
+    exit /b 1
 )
 
 :: ── Run the downloader ────────────────────────────────────────────────────────
-echo   Using:  & python --version
+for /f "tokens=*" %%v in ('%PYTHON% --version 2^>^&1') do echo   Using: %%v
 echo.
-python "%~dp0myrient_downloader.py"
-goto :end
+%PYTHON% "%~dp0myrient_downloader.py"
 
-:: ── Error: Python not found ───────────────────────────────────────────────────
-:no_python
 echo.
-echo   ╔══════════════════════════════════════════════════════╗
-echo   ║         Python is not installed                      ║
-echo   ╠══════════════════════════════════════════════════════╣
-echo   ║                                                      ║
-echo   ║  1. Go to:  https://www.python.org/downloads/        ║
-echo   ║  2. Download and run the installer                   ║
-echo   ║  3. IMPORTANT: check "Add Python to PATH"            ║
-echo   ║  4. Restart your computer                            ║
-echo   ║  5. Double-click this file again                     ║
-echo   ║                                                      ║
-echo   ╚══════════════════════════════════════════════════════╝
-echo.
-pause
-exit /b 1
-
-:: ── Error: Python too old ─────────────────────────────────────────────────────
-:old_python
-echo.
-echo   ╔══════════════════════════════════════════════════════╗
-echo   ║     Python 3.8 or newer is required                  ║
-echo   ╠══════════════════════════════════════════════════════╣
-echo   ║                                                      ║
-echo   ║  Your Python version is too old.                     ║
-echo   ║  Please download the latest Python from:             ║
-echo   ║    https://www.python.org/downloads/                 ║
-echo   ║                                                      ║
-echo   ╚══════════════════════════════════════════════════════╝
-echo.
-pause
-exit /b 1
-
-:end
 pause
