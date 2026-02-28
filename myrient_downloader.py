@@ -98,6 +98,15 @@ def _ensure_deps():
     print("=" * 55)
     print()
 
+    # Make newly installed packages importable in this same process
+    # by ensuring the user site-packages directory is on sys.path.
+    import site
+    import importlib
+    importlib.invalidate_caches()
+    user_site = site.getusersitepackages()
+    if user_site not in sys.path:
+        sys.path.insert(0, user_site)
+
 _ensure_deps()
 
 # ─────────────────────────────────────────────────────────────────────────────
