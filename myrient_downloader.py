@@ -43,30 +43,60 @@ _REQUIRED = {
 }
 
 def _ensure_deps():
-    missing = [pkg for mod, pkg in _REQUIRED.items()
-               if __import__("importlib").util.find_spec(mod) is None]
+    def _importable(mod):
+        try:
+            __import__(mod)
+            return True
+        except ImportError:
+            return False
+
+    missing = [pkg for mod, pkg in _REQUIRED.items() if not _importable(mod)]
     if not missing:
         return
 
-    print(f"\nFirst-run setup: installing {', '.join(missing)} ...")
-    print("This only happens once.\n")
+    print("=" * 55)
+    print("  Missing dependencies detected")
+    print("=" * 55)
+    print(f"  Required packages not found: {', '.join(missing)}")
+    print()
+    answer = input("  Install them now? [Y/n]: ").strip().lower()
+    if answer not in ("", "y", "yes"):
+        print("\n  Cannot run without these packages.")
+        print(f"  Install manually with:  pip install {' '.join(missing)}")
+        input("\n  Press Enter to exit...")
+        sys.exit(1)
 
     import subprocess
-    for extra_args in [["--user"], []]:
-        result = subprocess.run(
-            [sys.executable, "-m", "pip", "install", "--quiet"] + extra_args + missing,
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode == 0:
-            print("Dependencies installed successfully!\n")
-            return
 
-    print("ERROR: Could not install required packages automatically.")
-    print(f"Please run this command manually:\n")
-    print(f"  pip install {' '.join(missing)}\n")
-    input("Press Enter to exit...")
-    sys.exit(1)
+    print()
+    for pkg in missing:
+        print(f"  Installing {pkg} ...", end=" ", flush=True)
+        # Try --user first (no admin rights needed), then global
+        installed = False
+        for extra_args in [["--user"], []]:
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "--quiet"] + extra_args + [pkg],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0:
+                installed = True
+                break
+        if installed:
+            print("OK")
+        else:
+            print("FAILED")
+            print(f"\n  ERROR: Could not install '{pkg}'.")
+            print(f"  Please run manually:  pip install {pkg}")
+            if result.stderr:
+                print(f"\n  Details:\n{result.stderr.strip()}")
+            input("\n  Press Enter to exit...")
+            sys.exit(1)
+
+    print()
+    print("  All dependencies installed successfully!")
+    print("=" * 55)
+    print()
 
 _ensure_deps()
 
